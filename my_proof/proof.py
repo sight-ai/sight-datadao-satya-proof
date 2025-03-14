@@ -5,8 +5,11 @@ from typing import Dict, Any
 
 import requests
 
+from my_proof.eip712 import verify_signature
 from my_proof.models.proof_response import ProofResponse
 
+expected_signer = "0x5b341022794C71279fBC454985b5b9F7371e0821"
+score_threshold = 0.6
 
 class Proof:
     def __init__(self, config: Dict[str, Any]):
@@ -20,6 +23,7 @@ class Proof:
         # Iterate through files and calculate data validity
         account_email = None
         total_score = 0
+        total_entries = 0
 
         for input_filename in os.listdir(self.config['input_dir']):
             input_file = os.path.join(self.config['input_dir'], input_filename)
@@ -27,32 +31,49 @@ class Proof:
                 with open(input_file, 'r') as f:
                     input_data = json.load(f)
 
-                    if input_filename == 'account.json':
-                        account_email = input_data.get('email', None)
-                        continue
+                    if input_filename == 'input.json':
+                        valid_count = 0
+                        quality_count = 0
+                        for element in input_data:
+                            total_entries += 1
 
-                    elif input_filename == 'activity.json':
-                        total_score = sum(item['score'] for item in input_data)
-                        continue
+                            # Build the message dict for the contract (our contract expects { payload: string })
+                            # Check by EIP-712 signature
+                            message = {"payload": json.dumps(element["data"], separators=(',', ':'))}
+                            recovered = verify_signature(message, element["signature"])
+                            if recovered and recovered.lower() == expected_signer.lower():
+                                logging.info(
+                                    f"Signature check for element id {element.get('id')} passed"
+                                )
+                                valid_count += 1
+                            else:
+                                logging.warning(
+                                    f"Invalid signature for element id {element.get('id')}: recovered {recovered}")
 
-        email_matches = self.config['user_email'] == account_email
-        score_threshold = fetch_random_number()
+                            # Check by size
+                            try:
+                                quantity = float(element["data"].get("sz", "0"))
+                            except ValueError:
+                                logging.warning(f"Invalid quantity in element id {element.get('id')}")
+                                quantity = 0
+                            if quantity >= 10:
+                                quality_count += 1
 
-        # Calculate proof-of-contribution scores: https://docs.vana.org/vana/core-concepts/key-elements/proof-of-contribution/example-implementation
-        self.proof_response.ownership = 1.0 if email_matches else 0.0  # Does the data belong to the user? Or is it fraudulent?
-        self.proof_response.quality = max(0, min(total_score / score_threshold, 1.0))  # How high quality is the data?
-        self.proof_response.authenticity = 0  # How authentic is the data is (ie: not tampered with)? (Not implemented here)
-        self.proof_response.uniqueness = 0  # How unique is the data relative to other datasets? (Not implemented here)
+                        quality_percentage = quality_count / total_entries if total_entries > 0 else 0
+                        authenticity_score = valid_count / total_entries if total_entries > 0 else 0
+
+                        self.proof_response.quality = quality_percentage
+                        self.proof_response.ownership = authenticity_score
+                        self.proof_response.authenticity = authenticity_score
+                    continue
 
         # Calculate overall score and validity
         self.proof_response.score = 0.6 * self.proof_response.quality + 0.4 * self.proof_response.ownership
-        self.proof_response.valid = email_matches and total_score >= score_threshold
+        self.proof_response.valid = total_score >= score_threshold
 
         # Additional (public) properties to include in the proof about the data
         self.proof_response.attributes = {
             'total_score': total_score,
-            'score_threshold': score_threshold,
-            'email_verified': email_matches,
         }
 
         # Additional metadata about the proof, written onchain
