@@ -17,12 +17,17 @@ def load_config() -> Dict[str, Any]:
     """Load proof configuration from environment variables."""
     config = {
         'dlp_id': 1234,  # Set your own DLP ID here
-        'input_dir': INPUT_DIR,
-        'user_email': os.environ.get('USER_EMAIL', None),
+        'input_dir': INPUT_DIR
     }
+
+    # Extract all pullers as a list of addresses
+    pullers = [
+        value for key, value in os.environ.items() if key.startswith('PULLER_')
+    ]
+
+    config['pullers'] = pullers  # Store as a list
     logging.info(f"Using config: {json.dumps(config, indent=2)}")
     return config
-
 
 def run() -> None:
     """Generate proofs for all input files."""
