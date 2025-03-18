@@ -1,6 +1,7 @@
-# Vana Satya Proof of Contribution - Python Template
+# Sight DataDAO Vana Satya Proof of Contribution - Python
 
-This repository serves as a template for creating a [proof of contribution](https://docs.vana.org/vana/core-concepts/key-elements/proof-of-contribution) tasks using Python. It is executed on Vana's Satya Network, a group of highly confidential and secure compute nodes that can validate data without revealing its contents to the node operator.
+This repository serves as a template for creating a [proof of contribution](https://docs.vana.org/vana/core-concepts/key-elements/proof-of-contribution) tasks using Python. 
+It is executed on Vana's Satya Network, a group of highly confidential and secure compute nodes that can validate data without revealing its contents to the node operator.
 
 ## Overview
 
@@ -34,6 +35,7 @@ The project is designed to work with Intel TDX (Trust Domain Extensions), provid
 - `my_proof/`: Contains the main proof logic
     - `proof.py`: Implements the proof generation logic
     - `__main__.py`: Entry point for the proof execution
+    - `eip712.py`: Implements the on-chain EIP712 signature verification
     - `models/`: Data models for the proof system
 - `demo/`: Contains sample input and output for testing
 - `Dockerfile`: Defines the container image for the proof task
@@ -68,7 +70,8 @@ docker run \
   --rm \
   --volume $(pwd)/input:/input \
   --volume $(pwd)/output:/output \
-  --env USER_EMAIL=user123@gmail.com \
+  --env PULLER_1=0x5b341022794C71279fBC454985b5b9F7371e0821 \
+  --env PULLER_2=0x1a9f10a08AE0EeA1EC03Ab26eb574FFeC4d7Ca1A \
   my-proof
 ```
 
@@ -81,13 +84,27 @@ Common volume mounts and environment variables:
 ```bash
 docker run \
   --rm \
-  --volume /path/to/input:/input \
-  --volume /path/to/output:/output \
-  --env USER_EMAIL=user123@gmail.com \
+  --volume $(pwd)/input:/input \
+  --volume $(pwd)/output:/output \
+  --env PULLER_1=0x5b341022794C71279fBC454985b5b9F7371e0821 \
+  --env PULLER_2=0x1a9f10a08AE0EeA1EC03Ab26eb574FFeC4d7Ca1A \
   my-proof
 ```
 
 Remember to populate the `/input` directory with the files you want to process.
+
+## Running using exist docker image
+
+To use existing docker image from sight-datadao team, using:
+```bash
+docker run \
+  --rm \
+  --volume $(pwd)/input:/input \
+  --volume $(pwd)/output:/output \
+  --env PULLER_1=0x5b341022794C71279fBC454985b5b9F7371e0821 \
+  --env PULLER_2=0x1a9f10a08AE0EeA1EC03Ab26eb574FFeC4d7Ca1A \
+  ghcr.io/sight-ai/sight-datadao-satya-proof:0.0.2-SNAPSHOT 
+```
 
 ## Security Features
 
