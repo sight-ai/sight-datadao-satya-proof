@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Set
 
 import requests
 
-from my_proof.eip712 import verify_signature
+from my_proof.eip712 import EIP712SignatureVerifier
 from my_proof.models.proof_response import ProofResponse
 
 score_threshold = 0.6
@@ -16,6 +16,10 @@ class Proof:
         self.config = config
         self.proof_response = ProofResponse(dlp_id=config['dlp_id'])
         self.pullers = [puller.lower() for puller in config.get('pullers', [])]
+        self.provider_url = config.get('provider_url')
+        self.verification_contract_address = config.get('verification_contract_address')
+
+        self.eip712_signature_verifier = EIP712SignatureVerifier(self.provider_url, self.verification_contract_address)
 
     def generate(self) -> ProofResponse:
         """Generate proofs for all input files."""
@@ -108,7 +112,7 @@ class Proof:
         # Check all possible signature fields: "signature_1", "signature_2", ...
         for key, value in element.items():
             if key.startswith("signature_"):
-                recovered = verify_signature(message, value)
+                recovered = self.eip712_signature_verifier.verify_signature(message, value)
                 logging.info(f"recovered signer: ${recovered}")
                 if recovered or recovered.lower() in self.pullers:
                     unique_valid_signers.add(recovered.lower())

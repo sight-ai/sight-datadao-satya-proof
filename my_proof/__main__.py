@@ -17,7 +17,9 @@ def load_config() -> Dict[str, Any]:
     """Load proof configuration from environment variables."""
     config = {
         'dlp_id': 1234,  # Set your own DLP ID here
-        'input_dir': INPUT_DIR
+        'input_dir': INPUT_DIR,
+        'provider_url': os.getenv('PROVIDER_URL', 'https://rpc.moksha.vana.org'),
+        'verification_contract_address': os.getenv('VERIFICATION_CONTRACT_ADDRESS', '0x5c84d4dBD316252DC79dac7534aEE7F91E29eFAE'),
     }
 
     # Extract all pullers as a list of addresses
