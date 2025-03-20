@@ -8,12 +8,18 @@ on:
 
 permissions:
   contents: write
+  packages: write  # Required for GitHub Container Registry (GHCR)
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Read version from VERSION file
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,44 +29,52 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build Docker image
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image to GHCR
         uses: docker/build-push-action@v4
         with:
           context: .
-          load: true
+          push: true
           tags: |
-            my-proof:${{ github.run_number }}
-            my-proof:latest
+            ghcr.io/sight-ai/sight-datadao-satya-proof:${{ env.VERSION }}
+            ghcr.io/sight-ai/sight-datadao-satya-proof:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Export image to file
+      - name: Export Docker Image to File
         run: |
-          docker save my-proof:latest | gzip > my-proof-${{ github.run_number }}.tar.gz
+          docker pull ghcr.io/sight-ai/sight-datadao-satya-proof:${{ env.VERSION }}
+          docker save ghcr.io/sight-ai/sight-datadao-satya-proof:${{ env.VERSION }} | gzip > sight-datadao-satya-proof-${{ env.VERSION }}.tar.gz
 
       - name: Generate release body
         run: |
-          echo "Image SHA256: $(sha256sum my-proof-${{ github.run_number }}.tar.gz | cut -d' ' -f1)" >> release_body.txt
+          echo "Image SHA256: $(sha256sum sight-datadao-satya-proof-${{ env.VERSION }}.tar.gz | cut -d' ' -f1)" >> release_body.txt
 
-      - name: Upload image
+      - name: Upload Docker Image as Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: my-proof-image
-          path: my-proof-${{ github.run_number }}.tar.gz
+          name: sight-datadao-satya-proof-image
+          path: sight-datadao-satya-proof-${{ env.VERSION }}.tar.gz
 
-      - name: Create Release and Upload Assets
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
           body_path: release_body.txt
           draft: false
           prerelease: false
           files: |
-            ./my-proof-${{ github.run_number }}.tar.gz
+            ./sight-datadao-satya-proof-${{ env.VERSION }}.tar.gz
 
       - name: Log build result
         if: always()
